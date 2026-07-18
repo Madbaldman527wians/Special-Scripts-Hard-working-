@@ -111,17 +111,13 @@ local AnimsFolder = game:GetObjects(getcustomasset("Gerson.rbxmx"))[1]
 local Hmr = game:GetObjects(getcustomasset("Hammer.rbxmx"))[1]
 Hmr.Parent = game.Players.LocalPlayer.Character
 
-for _, v in ipairs(Hmr:GetDescendants()) do
-if v:IsA("BasePart") then v.Transparency = 1 end end
+
 local VFX = game:GetObjects(getcustomasset("SlashEffect.rbxmx"))[1]
 
 
 -- CARREGA O MODELO CORRETO DO PROJÉTIL (RudeBs.rbxmx)
 local RudeBusterModel = game:GetObjects(getcustomasset("RudeBs.rbxmx"))[1]
 
---//====================================================\\--
---||                Animator6D Pro V5.8 (R6)            ||--
---\\====================================================//--
 
 local Plrs = game:GetService("Players")
 local RS = game:GetService("RunService")
