@@ -1,0 +1,1213 @@
+local AnimsFolder = game:GetObjects(getcustomasset("Gerson.rbxmx"))[1]
+
+
+local Hmr = game:GetObjects(getcustomasset("Hammer.rbxmx"))[1]
+Hmr.Parent = game.Players.LocalPlayer.Character
+
+for _, v in ipairs(Hmr:GetDescendants()) do
+if v:IsA("BasePart") then v.Transparency = 1 end end
+local VFX = game:GetObjects(getcustomasset("SlashEffect.rbxmx"))[1]
+
+
+-- CARREGA O MODELO CORRETO DO PROJÉTIL (RudeBs.rbxmx)
+local RudeBusterModel = game:GetObjects(getcustomasset("RudeBs.rbxmx"))[1]
+
+--//====================================================\\--
+--||                Animator6D Pro V5.8 (R6)            ||--
+--\\====================================================//--
+
+local Plrs = game:GetService("Players")
+local RS = game:GetService("RunService")
+local TS = game:GetService("TweenService")
+local CP = game:GetService("ContentProvider")
+local Debris = game:GetService("Debris")
+local CAS = game:GetService("ContextActionService")
+
+local plr = Plrs.LocalPlayer
+local char = plr.Character or plr.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+local root = char:WaitForChild("HumanoidRootPart")
+local torso = char:WaitForChild("Torso")
+local rArm = char:WaitForChild("Right Arm")
+
+local hPart = Hmr:WaitForChild("Handle")
+hPart.Part0 = rArm
+
+local J_PWR = 50
+local J_HGT = 50
+local B_SPD = 10
+local M_SPD = 50
+local ACC_T = 1.2
+
+hum.JumpHeight = J_HGT
+hum.JumpPower = J_PWR
+
+-- Mapeamento das Animações
+local Anims = {
+	Idle  = AnimsFolder["Idle 2 new"],
+	Walk  = AnimsFolder["COMBAT Walk"],
+	Run   = AnimsFolder["COMBAT Run"],
+	Jump  = AnimsFolder:FindFirstChild("Jump"),
+	Fall  = AnimsFolder:FindFirstChild("Fall"),
+	
+	Combo = {
+		AnimsFolder["Attack Ones"].LMB1,
+		AnimsFolder["Attack Ones"].LMB2,
+		AnimsFolder["Attack Ones"].Light3,
+		AnimsFolder["Attack Ones"].LMB4,
+		AnimsFolder["Attack Ones"].LMB5,
+	},
+	
+	AtkStart    = AnimsFolder.SpecialOnes["GersonATK5 Start"],
+	Hit1        = AnimsFolder.SpecialOnes["GersonATK5 Hit1"],
+	Hit2        = AnimsFolder.SpecialOnes["GersonATK5 Hit2"],
+	HammerSmash = AnimsFolder.SpecialOnes.HammerSmash,
+	RudeBuster  = AnimsFolder.SpecialOnes:FindFirstChild("RudeBuster") or AnimsFolder.SpecialOnes.HammerSmash,
+	Laugh       = AnimsFolder.prov.GyahHahHahLoop
+}
+
+local R6M = {
+	["Head"] = "Neck",
+	["Torso"] = "RootJoint",
+	["Right Arm"] = "Right Shoulder",
+	["Left Arm"] = "Left Shoulder",
+	["Right Leg"] = "Right Hip",
+	["Left Leg"] = "Left Hip",
+	["HammerHandle"] = "Handle"
+}
+
+-- ========== CONFIGURAÇÕES DE VISUAIS ==========
+local S_Eff = VFX.SlashEffect.SlashEffect
+local Imgs = VFX.SlashEffect.Images
+local gCrack = VFX.GroundCrack:FindFirstChild("GroundCrack")
+local rSlam = VFX:FindFirstChild("RockSlam")
+
+local SData = {
+	["Light1"] = { ["speed"] = 20, ["delayTime"] = 0.1, ["color"] = Vector3.new(1, 5, 1), ["startAngle"] = CFrame.Angles(-1.4021, -0.5655, -1.2631) },
+	["Light2"] = { ["speed"] = 20, ["delayTime"] = 0.12, ["color"] = Vector3.new(1, 5, 1), ["startAngle"] = CFrame.Angles(2.4717, 0.5648, 0.7679) },
+	["Light3"] = { ["speed"] = 12.5, ["delayTime"] = 0.12, ["color"] = Vector3.new(2, 6, 2), ["startAngle"] = CFrame.Angles(-1.6964, 0.0189, -1.6747) },
+	["Light4"] = { ["speed"] = 24, ["delayTime"] = 0.14, ["color"] = Vector3.new(1, 5, 1), ["startAngle"] = CFrame.Angles(2.214, 0.6086, 1.1354) },
+	["Light5"] = { ["speed"] = 25, ["delayTime"] = 0.12, ["color"] = Vector3.new(2, 6, 2), ["startAngle"] = CFrame.Angles(-1.6964, 0.0189, -1.6747) },
+	["Move1"] = { ["speed"] = 25, ["delayTime"] = 0.12, ["color"] = Vector3.new(2, 6, 2), ["startAngle"] = CFrame.Angles(-1.6964, 0.0189, -1.6747) },
+	["Move2"] = { ["speed"] = 22, ["delayTime"] = 0.3, ["color"] = Vector3.new(2, 6, 2), ["startAngle"] = CFrame.Angles(-2.0757, -1.056, -1.9515) },
+	["Move3"] = {},
+	["Move4"] = { ["speed"] = 25, ["delayTime"] = 0, ["color"] = Vector3.new(2, 6, 2), ["startAngle"] = CFrame.Angles(-1.5707, 0.6939, -1.5707) },
+	["Move4Alt"] = { ["speed"] = 24, ["delayTime"] = 0.43, ["color"] = Vector3.new(5, 2, 5), ["startAngle"] = CFrame.new(-0.6808, 0.348, -0) * CFrame.Angles(1.3898, -0.404, 1.5134) },
+	["Move5"] = { ["speed"] = 25, ["delayTime"] = 0, ["color"] = Vector3.new(2, 6, 2), ["startAngle"] = CFrame.Angles(-1.0725, 0.707, -2.1316) }
+}
+
+local STexs, tImgL = {}, {}
+for _, img in ipairs(Imgs:GetChildren()) do
+	local fNum = tonumber(img.Name)
+	if fNum then table.insert(tImgL, {Frame = fNum, Texture = img.Texture}) end
+end
+table.sort(tImgL, function(a, b) return a.Frame < b.Frame end)
+for i, d in ipairs(tImgL) do STexs[i] = d.Texture end
+
+local tCache = Instance.new("Part")
+tCache.Name = "GersonSlashTextureCache"
+tCache.Size = Vector3.new(0.001, 0.001, 0.001)
+tCache.Transparency = 1
+tCache.Anchored, tCache.CanCollide, tCache.CanQuery, tCache.CanTouch = true, false, false, false
+tCache.Parent = char
+
+for _, tex in ipairs(STexs) do
+	local dec = Instance.new("Decal")
+	dec.Texture = tex
+	dec.Parent = tCache
+end
+CP:PreloadAsync(tCache:GetChildren())
+
+local sThreads = {}
+
+local function pSlash(name, mult)
+	local model = S_Eff:Clone()
+	local sPart = model:FindFirstChild("SlashPart")
+	if not sPart then model:Destroy() return end
+	
+	local mesh = sPart:FindFirstChildOfClass("SpecialMesh")
+	local scale = char:GetScale()
+	local d = SData[name]
+	
+	if d and mesh and next(d) ~= nil then
+		model:ScaleTo(scale * (mult or 1.2))
+		if d.color then mesh.VertexColor = d.color end
+		model:PivotTo(char:GetPivot())
+		
+		local weld = sPart:FindFirstChild("Weld")
+		if weld then
+			weld.Part0 = root
+			weld.C0 = d.startAngle
+		end
+		
+		sPart.Transparency = 1
+		model.Parent = workspace
+		
+		if sThreads[sPart] then
+			task.cancel(sThreads[sPart])
+			sThreads[sPart] = nil
+		end
+		
+		Debris:AddItem(model, 3)
+		if d.delayTime and d.delayTime > 0 then task.wait(d.delayTime) end
+		
+		if not char:GetAttribute("Hit") then
+			sPart.Transparency = 0.05
+			sThreads[sPart] = task.spawn(function()
+				for i = 1, #STexs do
+					if not sPart or not sPart.Parent or not mesh then break end
+					mesh.TextureId = STexs[i]
+					if weld and weld.Parent then
+						weld.C0 = weld.C0 * CFrame.Angles(0, math.rad(-d.speed), 0)
+					end
+					task.wait(0.03)
+				end
+				if model and model.Parent then model:Destroy() end
+				sThreads[sPart] = nil
+			end)
+		else
+			model:Destroy()
+		end
+	else
+		model:Destroy()
+	end
+end
+
+-- ========== CONFIGURAÇÕES DE ÁUDIO & IMPACTO ==========
+local HSnds = {
+	["Atomic"] = {
+		["Normal"] = { "rbxassetid://78508980966482" },
+		["Final"] = { "rbxassetid://112306679231823", "rbxassetid://71755838338241", "rbxassetid://97849181861529" },
+		["Arrow"] = { "rbxassetid://72082376961672", "rbxassetid://78736930052546", "rbxassetid://85784410478791", "rbxassetid://85466681554030" },
+		["Fire"] = { "rbxassetid://4403634269" }
+	},
+	["Default"] = {
+		["Normal"] = { getcustomasset("100991290091529.ogg") },
+		["Final"] = { getcustomasset("98690501337789.ogg") }
+	},
+	["Susie"] = {
+		["Normal"] = { "rbxassetid://406913243" },
+		["Final"] = { "rbxassetid://82708037443413" }
+	}
+}
+
+local hFolder = VFX.HammerHit
+local hTemp = hFolder:FindFirstChild("Effect")
+
+local function pSound(id, parent, vol, pitch)
+	if not parent or not id then return end
+	local snd = Instance.new("Sound")
+	snd.SoundId = id
+	snd.Volume = vol or 1
+	snd.PlaybackSpeed = pitch or 1
+	snd.RollOffMode = Enum.RollOffMode.InverseTapered
+	snd.RollOffMinDistance, snd.RollOffMaxDistance = 10, 100
+	snd.Parent = parent
+	snd:Play()
+	Debris:AddItem(snd, 3)
+end
+
+local function eParts(model)
+	for _, child in ipairs(model:GetDescendants()) do
+		if child:IsA("ParticleEmitter") then
+			task.spawn(function()
+				local delayVal = child:GetAttribute("EmitDelay")
+				local durationVal = child:GetAttribute("EmitDuration")
+				local countVal = child:GetAttribute("EmitCount")
+				
+				if delayVal then task.wait(delayVal) end
+				child:Emit(tonumber(countVal) or 15)
+				
+				if durationVal then
+					child.Enabled = true
+					task.wait(durationVal)
+					child.Enabled = false
+				end
+			end)
+		end
+	end
+end
+
+local function sHit(tPart, isFinal, cType)
+	if not hTemp or not tPart then return end
+	local clone = hTemp:Clone()
+	local skin = char:GetAttribute("Skin") or "Default"
+	if not HSnds[skin] then skin = "Default" end
+	
+	clone:ScaleTo(isFinal and 1.6 or 1.2)
+	clone:PivotTo(tPart.CFrame)
+	clone.Parent = workspace
+	
+	local sList = HSnds[skin]
+	local sId, vol, pitch = nil, 1, 1
+	local rng = Random.new()
+	
+	if cType then
+		local list = sList[cType] or HSnds.Default[cType]
+		if list then
+			sId = list[math.random(1, #list)]
+			vol = 2.2
+			pitch = rng:NextInteger(90, 110) * 0.01
+		end
+	elseif isFinal then
+		local list = sList.Final or HSnds.Default.Final
+		sId = list[math.random(1, #list)]
+		vol = (skin == "Atomic") and 2.6 or 1.6
+		pitch = 0.9
+	else
+		local list = sList.Normal or HSnds.Default.Normal
+		sId = list[math.random(1, #list)]
+		vol = (skin == "Atomic") and 1.4 or 2.4
+		pitch = 1.2
+	end
+	
+	if sId then pSound(sId, clone.PrimaryPart or tPart, vol, pitch) end
+	eParts(clone)
+	Debris:AddItem(clone, 3)
+end
+
+local function sCrack(cf)
+	if not gCrack then return end
+	local clone = gCrack:Clone()
+	clone:PivotTo(cf)
+	clone.Parent = workspace
+	
+	if rSlam then
+		local snds = rSlam:GetChildren()
+		if #snds > 0 then
+			local rnd = snds[math.random(1, #snds)]
+			if rnd and rnd:IsA("Sound") then
+				pSound(rnd.SoundId, clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart"), 1.5, 1.0)
+			end
+		end
+	end
+	eParts(clone)
+	Debris:AddItem(clone, 10)
+end
+
+local function sTele(tChar, cf, scale, vol)
+	local temp = VFX.teleportAt:FindFirstChild("Teleport")
+	if not temp then return end
+	local clone = temp:Clone()
+	clone:ScaleTo(scale or 1)
+	clone:PivotTo(cf)
+	clone.Parent = workspace
+	
+	eParts(clone)
+	local snd = temp:FindFirstChild("Sound") or temp:FindFirstChildWhichIsA("Sound")
+	if snd then
+		pSound(snd.SoundId, clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart"), vol or 2.5, 1.4)
+	end
+	Debris:AddItem(clone, 5)
+end
+
+local function sGlitch(tChar, oPart, tPart, swData)
+	if not tChar then return end
+	local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+	if tRoot and (workspace.CurrentCamera.CFrame.Position - tRoot.Position).Magnitude <= 500 then
+		local rig = tChar:Clone()
+		for _, child in ipairs(rig:GetDescendants()) do
+			if child:IsA("LocalScript") or child:IsA("Script") then
+				child:Destroy()
+			elseif child:IsA("BasePart") then
+				child.Transparency = child.Transparency + 0.2
+				child.CanCollide, child.CanQuery, child.CanTouch = false, false, false
+			end
+		end
+		
+		local cRoot = rig:FindFirstChild("HumanoidRootPart")
+		rig.Parent = workspace
+		
+		local anim = rig:FindFirstChild("Humanoid")
+		if anim then anim = anim:FindFirstChildOfClass("Animator") end
+		
+		local rng = Random.new()
+		local rot = CFrame.fromOrientation(0, math.rad(rng:NextNumber(-180, 180)), 0) * CFrame.new(0, 0, -8)
+		
+		local conn = RS.PostSimulation:Connect(function()
+			if not oPart or not tPart or not cRoot then return end
+			local targetCF
+			if (oPart.Position - tPart.Position).Magnitude > 27.5 then
+				targetCF = CFrame.new(Vector3.new(tPart.Position.X, oPart.Position.Y, tPart.Position.Z), oPart.Position) * CFrame.new(0, 0, -27.5)
+			else
+				targetCF = CFrame.new(oPart.Position + rot.Position, oPart.Position)
+			end
+			cRoot.CFrame = targetCF
+		end)
+		
+		local glt = game:GetService("SoundService"):FindFirstChild("Glitch") or tRoot:FindFirstChildWhichIsA("Sound")
+		if glt then pSound(glt.SoundId, cRoot, 1, rng:NextInteger(115, 170) * 0.001) end
+		
+		if anim then
+			local idx = rng:NextInteger(1, 2)
+			local trackObj = script:FindFirstChild("AfterImage" .. idx)
+			if trackObj then
+				local track = anim:LoadAnimation(trackObj)
+				track:Play(0, nil, 2)
+				track.Stopped:Once(function()
+					track:Play(0, nil, 0)
+					track.TimePosition = track.Length - 0.001
+				end)
+				
+				task.delay(0.1, function()
+					conn:Disconnect()
+					track:AdjustSpeed(0.5)
+					
+					local slsh = game:GetService("SoundService"):FindFirstChild("Knife_Slash")
+					if slsh then pSound(slsh.SoundId, cRoot, 1.2, 1) end
+					
+					task.spawn(pSlash, "Move4Alt", 1.35)
+					TS:Create(cRoot, TweenInfo.new(0.05, Enum.EasingStyle.Cubic), {CFrame = cRoot.CFrame + cRoot.CFrame.LookVector * 5}):Play()
+					task.wait(0.05)
+					TS:Create(cRoot, TweenInfo.new(0.8, Enum.EasingStyle.Cubic), {CFrame = cRoot.CFrame + cRoot.CFrame.LookVector * 1}):Play()
+				end)
+				task.wait(0.8)
+			else
+				task.wait(0.3)
+				conn:Disconnect()
+			end
+		else
+			task.wait(0.3)
+			conn:Disconnect()
+		end
+		
+		for _, part in ipairs(rig:GetDescendants()) do
+			if part:IsA("BasePart") then part.Anchored = true end
+		end
+		
+		for i = 0, 1, 0.1 do
+			for _, part in ipairs(rig:GetDescendants()) do
+				if part:IsA("BasePart") then part.Transparency = math.clamp(part.Transparency + 0.1, 0, 1) end
+			end
+			task.wait(0.02)
+		end
+		rig:Destroy()
+	end
+end
+
+-- ========== PARSER DE FRAMES & MOTOR ==========
+local function toTab(kfs)
+	if not (kfs and typeof(kfs) == "Instance" and kfs:IsA("KeyframeSequence")) then
+		if typeof(kfs) == "Instance" then
+			for _, obj in ipairs(kfs:GetDescendants()) do
+				if obj:IsA("KeyframeSequence") then kfs = obj break end
+			end
+		end
+	end
+	assert(kfs and typeof(kfs) == "Instance" and kfs:IsA("KeyframeSequence"), "Sequencia Invalida")
+
+	local seq = {}
+	for _, frame in ipairs(kfs:GetKeyframes()) do
+		local entry = { Time = frame.Time, Data = {} }
+		for _, pose in ipairs(frame:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				entry.Data[pose.Name] = { CFrame = pose.CFrame }
+			end
+		end
+		table.insert(seq, entry)
+	end
+	table.sort(seq, function(a, b) return a.Time < b.Time end)
+	return seq, kfs.Loop
+end
+
+local function bMap(rig)
+	local map, low = {}, {}
+	for _, m in ipairs(rig:GetDescendants()) do
+		if m:IsA("Motor6D") then
+			map[m.Name] = m
+			low[string.lower(m.Name)] = m
+		end
+	end
+	return map, low
+end
+
+local function fMotor(pName, map, low)
+	local match = R6M[pName] or pName
+	return map[match] or low[string.lower(match)]
+end
+
+-- ========== REPRODUTOR DE ANIMS (6D) ==========
+local APlay = {}
+APlay.__index = APlay
+
+function APlay.new(rig, kfs)
+	local self = setmetatable({}, APlay)
+	self.rig = rig
+	self.seq, self.looped = toTab(kfs)
+	self.map, self.low = bMap(rig)
+	self.time, self.playing = 0, false
+	self.length = self.seq[#self.seq].Time
+	self.speed = 1
+	self.freezeOnEnd = false
+	return self
+end
+
+function APlay:Play(speed, loop, freeze, fade)
+	if self.playing then return end
+	self.playing, self.speed = true, speed or 1
+	self.looped = (loop == nil) and self.looped or loop
+	self.freezeOnEnd = freeze or false
+	
+	local fDur = fade or 0.15
+	local elap = 0
+	local init = {}
+	
+	for name, motor in pairs(self.map) do
+		init[name] = motor.Transform
+	end
+
+	self.conn = RS.Heartbeat:Connect(function(dt)
+		if not self.playing then return end
+		self.time += dt * self.speed
+		elap += dt
+
+		if self.time > self.length then
+			if self.looped then
+				self.time -= self.length
+			elseif self.freezeOnEnd then
+				self.time = self.length
+			else
+				self:Stop(true)
+				return
+			end
+		end
+
+		local f1, f2 = self.seq[1], self.seq[1]
+		for i = 1, #self.seq do
+			if self.seq[i].Time <= self.time then
+				f1 = self.seq[i]
+			else
+				f2 = self.seq[i]
+				break
+			end
+		end
+
+		local alpha = 0
+		local diff = f2.Time - f1.Time
+		if diff > 0 then alpha = (self.time - f1.Time) / diff end
+		alpha = math.clamp(alpha, 0, 1)
+
+		local weight = math.clamp(elap / fDur, 0, 1)
+
+		for joint, d1 in pairs(f1.Data) do
+			local motor = fMotor(joint, self.map, self.low)
+			if motor then
+				local d2 = f2.Data[joint] or d1
+				pcall(function()
+					local target = d1.CFrame:Lerp(d2.CFrame, alpha)
+					local start = init[motor.Name] or CFrame.new()
+					motor.Transform = start:Lerp(target, weight)
+				end)
+			end
+		end
+	end)
+end
+
+function APlay:Stop(restore)
+	self.playing = false
+	if self.conn then self.conn:Disconnect() self.conn = nil end
+	if restore then
+		for _, m in pairs(self.map) do
+			pcall(function() m.Transform = CFrame.new() end)
+		end
+	end
+end
+
+local function disAnims(ch)
+	if not hum then return end
+	for _, trk in ipairs(hum:GetPlayingAnimationTracks()) do trk:Stop(0) end
+	local scr = ch:FindFirstChild("Animate")
+	if scr then scr.Disabled = true end
+	local atr = hum:FindFirstChildOfClass("Animator")
+	if atr then atr:Destroy() end
+end
+disAnims(char)
+
+-- ========== GERENCIADOR DE ESTADOS ==========
+local curTrk = nil
+local accTwn = nil
+local isAtk = false
+local isSpec = false
+local cCombo = 1
+local lAtk = 0
+local lSpec1 = 0
+local lSpec2 = 0
+local lBuster = 0
+local cState = "Idle"
+
+-- Variáveis da Mecânica de Lock-On e Teleporte
+local lockedTarget = nil
+local lockSelecting = false
+local lockConnection = nil
+local teleSelecting = false
+
+local function pAnim(kfs, speed, loop, freeze, fade)
+	if curTrk then curTrk:Stop(false) end
+	curTrk = APlay.new(char, kfs)
+	curTrk:Play(speed, loop, freeze, fade)
+	return curTrk
+end
+
+local function setLock(lock)
+	if lock then
+		if accTwn then accTwn:Cancel() end
+		hum.WalkSpeed, hum.JumpPower, hum.JumpHeight = 0, 0, 0
+		hum.AutoRotate = false
+	else
+		hum.AutoRotate = (lockedTarget == nil)
+		hum.JumpPower, hum.JumpHeight = J_PWR, J_HGT
+		hum.WalkSpeed = B_SPD
+	end
+end
+
+local function updMov(speed)
+	if isAtk or isSpec then return end
+	
+	local state = hum:GetState()
+	
+	if state == Enum.HumanoidStateType.Jumping then
+		if cState ~= "Jumping" then
+			cState = "Jumping"
+			pAnim(Anims.Jump, 1, false, true, 0.1)
+		end
+		return
+	elseif state == Enum.HumanoidStateType.Freefall then
+		if cState ~= "Freefall" then
+			cState = "Freefall"
+			pAnim(Anims.Fall, 1, true, false, 0.1)
+		end
+		return
+	end
+
+	if speed > 0.5 then
+		if cState == "Idle" or cState == "Jumping" or cState == "Freefall" then
+			cState = "Walking"
+			pAnim(Anims.Walk, 1, true, false, 0.2)
+			hum.WalkSpeed = B_SPD
+			if accTwn then accTwn:Cancel() end
+			accTwn = TS:Create(hum, TweenInfo.new(ACC_T, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {WalkSpeed = M_SPD})
+			accTwn:Play()
+		end
+		
+		if hum.WalkSpeed > 13 and cState ~= "Running" then
+			cState = "Running"
+			pAnim(Anims.Run, 1.2, true, false, 0.2)
+		elseif hum.WalkSpeed <= 13 and cState ~= "Walking" then
+			cState = "Walking"
+			pAnim(Anims.Walk, 1, true, false, 0.2)
+		end
+	else
+		if cState ~= "Idle" then
+			cState = "Idle"
+			if accTwn then accTwn:Cancel() end
+			hum.WalkSpeed = B_SPD
+			pAnim(Anims.Idle, 1, true, false, 0.2)
+		end
+	end
+end
+
+hum.Running:Connect(updMov)
+
+hum.Jumping:Connect(function(active)
+	if isAtk or isSpec then return end
+	if active then
+		cState = "Jumping"
+		pAnim(Anims.Jump, 1.1, false, true, 0.05)
+	end
+end)
+
+hum.StateChanged:Connect(function(_, state)
+	if isAtk or isSpec then return end
+	
+	if state == Enum.HumanoidStateType.Jumping then
+		if cState ~= "Jumping" then
+			cState = "Jumping"
+			pAnim(Anims.Jump, 1.1, false, true, 0.05)
+		end
+	elseif state == Enum.HumanoidStateType.Freefall then
+		if cState ~= "Freefall" then
+			cState = "Freefall"
+			pAnim(Anims.Fall, 1, true, false, 0.15)
+		end
+	elseif state == Enum.HumanoidStateType.Landed or state == Enum.HumanoidStateType.Running then
+		cState = "Landed"
+		updMov(hum.MoveDirection.Magnitude)
+	end
+end)
+
+-- ========== DETECÇÃO DE COMBATE ==========
+local function cHit(range, box, isFinal)
+	local op = OverlapParams.new()
+	op.FilterType = Enum.RaycastFilterType.Exclude
+	op.FilterDescendantsInstances = {char}
+	
+	local parts = workspace:GetPartBoundsInBox(root.CFrame * CFrame.new(0, 0, -range), box, op)
+	local targets = {}
+	for _, part in ipairs(parts) do
+		local tc = part.Parent
+		if tc and tc:FindFirstChild("Humanoid") and tc:FindFirstChild("HumanoidRootPart") then
+			if not targets[tc] then
+				targets[tc] = true
+				sHit(tc.HumanoidRootPart, isFinal)
+			end
+		end
+	end
+end
+
+-- ========== EXECUÇÕES DE HABILIDADES ==========
+local ComboSlashNames = { [1] = "Light1", [2] = "Light2", [3] = nil, [4] = "Light5", [5] = "Light4" }
+
+local function doAtk()
+	if isAtk or isSpec then return end
+	isAtk = true
+	
+	if tick() - lAtk > 3.0 then cCombo = 1 end
+	setLock(true)
+	
+	local anim = Anims.Combo[cCombo]
+	if anim then
+		local speed = 1
+		local trk = pAnim(anim, speed, false, false, 0.1)
+		local slash = ComboSlashNames[cCombo]
+		if slash then task.spawn(pSlash, slash, nil) end
+		
+		local final = (cCombo == 5)
+		task.delay(0.12, function() cHit(4, Vector3.new(6, 5, 6), final) end)
+		task.wait(trk.length / speed)
+		trk:Stop(true)
+	end
+	
+	lAtk = tick()
+	cCombo = (cCombo % #Anims.Combo) + 1
+	isAtk = false
+	setLock(false)
+	cState = "Dummy"
+	updMov(hum.MoveDirection.Magnitude)
+end
+
+local function getMouse()
+	local mouse = plr:GetMouse()
+	local target = mouse.Target
+	if target then
+		local model = target:FindFirstAncestorOfClass("Model")
+		if model and model ~= char then
+			local tHum = model:FindFirstChildOfClass("Humanoid")
+			local tRoot = model:FindFirstChild("HumanoidRootPart")
+			if tHum and tRoot and tHum.Health > 0 then return model, tRoot end
+		end
+	end
+	return nil, nil
+end
+
+-- Sistema de Manipulação Visual de Cooldowns na Nova UI (Corrigido com os caminhos solicitados)
+local function applyUIDebounce(slotFrame, cooldownTime)
+	if not slotFrame then return end
+	local cooldownLabel = slotFrame:FindFirstChild("CooldownLabel") or Instance.new("TextLabel")
+	if not cooldownLabel.Parent then
+		cooldownLabel.Name = "CooldownLabel"
+		cooldownLabel.Size = UDim2.new(1, 0, 1, 0)
+		cooldownLabel.BackgroundTransparency = 0.4
+		cooldownLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		cooldownLabel.TextColor3 = Color3.fromRGB(255, 255, 255)		
+		cooldownLabel.FontFace = Font.new(
+			"rbxasset://fonts/families/PressStart2P.json",
+			Enum.FontWeight.Regular,
+			Enum.FontStyle.Normal
+		)
+		cooldownLabel.TextSize = 28
+		cooldownLabel.ZIndex = 10
+		cooldownLabel.Parent = slotFrame
+	end
+	
+	cooldownLabel.Visible = true
+	local start = tick()
+	while tick() - start < cooldownTime do
+		local rem = cooldownTime - (tick() - start)
+		cooldownLabel.Text = string.format("%.1f", rem)
+		task.wait(0.05)
+	end
+	cooldownLabel.Visible = false
+end
+
+local function doSmash()
+	if isAtk or isSpec then return end
+	if tick() - lSpec1 < 3.0 then return end
+	
+	if not lockedTarget or not lockedTarget:FindFirstChild("HumanoidRootPart") then
+		return
+	end
+	
+	local tRoot = lockedTarget.HumanoidRootPart
+	local tModel = lockedTarget
+	
+	isSpec = true
+	lSpec1 = tick()
+	setLock(true)
+	
+	-- Alimentação do Shower Debounce usando a nova hierarquia corrigida
+	local shower = plr.PlayerGui:FindFirstChild("UI") and plr.PlayerGui.UI:FindFirstChild("Ui") and plr.PlayerGui.UI.Ui:FindFirstChild("MoveDebounceShower")
+	local movesList = shower and shower:FindFirstChild("Moves1")
+	if movesList and movesList:FindFirstChild("1") then
+		task.spawn(applyUIDebounce, movesList["1"], 3.0)
+	end
+	
+	local hl = Instance.new("Highlight")
+	hl.FillColor, hl.FillTransparency, hl.OutlineColor, hl.OutlineTransparency = Color3.fromRGB(255, 0, 0), 0.7, Color3.fromRGB(255, 0, 0), 0
+	hl.Adornee = tModel
+	hl.Parent = tModel
+	
+	for i = 1, 4 do hl.Enabled = not hl.Enabled task.wait(0.05) end
+	hl.Enabled = true
+	task.delay(0.5, function() if hl then hl:Destroy() end end)
+	
+	local cam = workspace.CurrentCamera
+	local camCF = Instance.new("Part")
+	camCF.Size, camCF.Transparency, camCF.Anchored, camCF.CanCollide = Vector3.new(1, 1, 1), 1, true, false
+	camCF.CFrame = root.CFrame
+	camCF.Parent = workspace
+	
+	sTele(char, root.CFrame, 1.2, 2.5)
+	cam.CameraSubject = camCF
+	
+	local targetPos = tRoot.Position
+	local tLook = tRoot.CFrame.LookVector
+	local teleCF = CFrame.new(targetPos - (tLook * 3.5), targetPos)
+	
+	root.CFrame = CFrame.new(0, 1e10, 0)
+	task.wait(0.35)
+	
+	camCF.CFrame = teleCF
+	sTele(char, teleCF, 1.2, 2.5)
+	task.wait(0.1)
+	
+	root.CFrame = teleCF
+	cam.CameraSubject = hum
+	camCF:Destroy()
+
+	local speed = 3.6
+	local totalHits = 3
+	
+	for strike = 1, totalHits do
+		if not isSpec then break end
+		local trk = pAnim(Anims.HammerSmash, speed, false, false, 0.1)
+		task.spawn(pSlash, "Move1", 1.8)
+		
+		local isFinal = (strike == totalHits)
+		task.delay(0.1, function()
+			sHit(tRoot, isFinal)
+			if isFinal then sCrack(tRoot.CFrame * CFrame.new(0, -2, 0)) end
+		end)
+		task.wait(trk.length / speed)
+		trk:Stop(true)
+	end
+	
+	isSpec = false
+	setLock(false)
+	cState = "Dummy"
+	updMov(hum.MoveDirection.Magnitude)
+end
+
+local function doRun()
+	if isAtk or isSpec then return end
+	if tick() - lSpec2 < 3.0 then return end
+	
+	isSpec = true
+	lSpec2 = tick()
+	setLock(true)
+	
+	local shower = plr.PlayerGui:FindFirstChild("UI") and plr.PlayerGui.UI:FindFirstChild("Ui") and plr.PlayerGui.UI.Ui:FindFirstChild("MoveDebounceShower")
+	local movesList = shower and shower:FindFirstChild("Moves1")
+	if movesList and movesList:FindFirstChild("2") then
+		task.spawn(applyUIDebounce, movesList["2"], 3.0)
+	end
+	
+	local speed = 1.1
+	local trk = pAnim(Anims.AtkStart, speed, false, true, 0.15)
+	
+	local att, lv = nil, nil
+	local hit, hRoot = false, nil
+	
+	task.delay((15 / 30) / speed, function()
+		if not isSpec or not trk.playing then return end
+		local dir = root.CFrame.LookVector
+		dir = Vector3.new(dir.X, 0, dir.Z).Unit
+		
+		att = Instance.new("Attachment")
+		att.Parent = root
+		
+		lv = Instance.new("LinearVelocity")
+		lv.MaxForce, lv.VelocityConstraintMode = 15000, Enum.VelocityConstraintMode.Vector
+		lv.VectorVelocity = dir * 120
+		lv.Attachment0 = att
+		lv.Parent = root
+	end)
+	
+	local runT = trk.length / speed
+	local elap = 0
+	while elap < runT and not hit and isSpec do
+		local dt = task.wait(0.02)
+		elap = elap + dt
+		
+		if lv then
+			local op = OverlapParams.new()
+			op.FilterType = Enum.RaycastFilterType.Exclude
+			op.FilterDescendantsInstances = {char}
+			local parts = workspace:GetPartBoundsInBox(root.CFrame * CFrame.new(0, 0, -3), Vector3.new(5, 5, 5), op)
+			for _, part in ipairs(parts) do
+				local tc = part.Parent
+				if tc and tc:FindFirstChild("Humanoid") and tc:FindFirstChild("HumanoidRootPart") then
+					hit, hRoot = true, tc.HumanoidRootPart
+					break
+				end
+			end
+		end
+	end
+	
+	if lv then lv:Destroy() end
+	if att then att:Destroy() end
+	trk:Stop(false)
+	
+	if not isSpec then return end
+	
+	if hit and hRoot then
+		local hit1Trk = pAnim(Anims.Hit1, 1, false, false, 0.1)
+		task.spawn(pSlash, "Move4", 1.5)
+		sHit(hRoot, false)
+		task.spawn(sGlitch, char, root, hRoot, "Swing1")
+		
+		task.wait(hit1Trk.length / 2)
+		hit1Trk:Stop(false)
+		
+		if isSpec then
+			local hit2Trk = pAnim(Anims.Hit2, 2, false, false, 0.1)
+			task.spawn(pSlash, "Light3", 1.5)
+			
+			task.delay(0.2, function() if hRoot then sHit(hRoot, true) end end)
+			task.delay(10 / 30, function()
+				if hRoot then sCrack(hRoot.CFrame * CFrame.new(0, -2, 0)) end
+			end)
+			
+			task.wait(hit2Trk.length / 2)
+			hit2Trk:Stop(true)
+		end
+	end
+	
+	isSpec = false
+	setLock(false)
+	cState = "Dummy"
+	updMov(hum.MoveDirection.Magnitude)
+end
+
+local function doBuster()
+	if isAtk or isSpec then return end
+	if tick() - lBuster < 4.0 then return end
+	
+	isSpec = true
+	lBuster = tick()
+	setLock(true)
+	
+	local shower = plr.PlayerGui:FindFirstChild("UI") and plr.PlayerGui.UI:FindFirstChild("Ui") and plr.PlayerGui.UI.Ui:FindFirstChild("MoveDebounceShower")
+	local movesList = shower and shower:FindFirstChild("Moves1")
+	if movesList and movesList:FindFirstChild("3") then
+		task.spawn(applyUIDebounce, movesList["3"], 4.0)
+	end
+	
+	local speed = 1.2
+	local trk = pAnim(Anims.RudeBuster, speed, false, false, 0.1)
+	
+	task.delay(0.15, function()
+		local targetMC, targetRT = getMouse()
+		local endPos = targetRT and targetRT.Position or (root.CFrame * CFrame.new(0, 0, -60)).Position
+		
+		local projectileModel = RudeBusterModel:Clone()
+		local startCF = root.CFrame * CFrame.new(0, 0, -3)
+		
+		if projectileModel:IsA("Model") then
+			projectileModel:PivotTo(startCF)
+		elseif projectileModel:IsA("BasePart") then
+			projectileModel.CFrame = startCF
+		end
+		
+		projectileModel.Parent = workspace
+		
+		local pPart = projectileModel:FindFirstChild("RudeBuster") 
+			or projectileModel.PrimaryPart 
+			or (projectileModel:IsA("BasePart") and projectileModel)
+			or projectileModel:FindFirstChildWhichIsA("BasePart")
+			
+		if pPart then
+			pPart.Anchored = false
+			local bodyVelocity = Instance.new("BodyVelocity")
+			bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+			bodyVelocity.Velocity = (endPos - pPart.Position).Unit * 100
+			bodyVelocity.Parent = pPart
+		end
+		
+		eParts(projectileModel)
+		
+		task.spawn(function()
+			local hitDetected = false
+			local elapsed = 0
+			local hitTarget = nil
+			
+			while elapsed < 2.5 and not hitDetected do
+				local dt = task.wait(0.03)
+				elapsed = elapsed + dt
+				
+				if projectileModel and projectileModel.Parent then
+					local op = OverlapParams.new()
+					op.FilterType = Enum.RaycastFilterType.Exclude
+					op.FilterDescendantsInstances = {char, projectileModel}
+					
+					local modelPivot = projectileModel:IsA("Model") and projectileModel:GetPivot() or projectileModel.CFrame
+					local parts = workspace:GetPartBoundsInBox(modelPivot, Vector3.new(5, 5, 5), op)
+					for _, part in ipairs(parts) do
+						local tc = part.Parent
+						if tc and tc:FindFirstChild("Humanoid") and tc:FindFirstChild("HumanoidRootPart") then
+							hitTarget = tc.HumanoidRootPart
+							hitDetected = true
+							break
+						end
+					end
+				else
+					break
+				end
+			end
+			
+			local explodeCF = CFrame.new(endPos)
+			if projectileModel then 
+				explodeCF = projectileModel:IsA("Model") and projectileModel:GetPivot() or projectileModel.CFrame
+				projectileModel:Destroy() 
+			end
+			
+			local expTemplate = VFX:FindFirstChild("RudeBusterExplode") and VFX["RudeBusterExplode"]:FindFirstChild("RudeBusterExplosion")
+			if expTemplate then
+				local expClone = expTemplate:Clone()
+				if expClone:IsA("Model") then
+					expClone:PivotTo(explodeCF)
+				elseif expClone:IsA("BasePart") then
+					expClone.CFrame = explodeCF
+				end
+				expClone.Parent = workspace
+				eParts(expClone)
+				Debris:AddItem(expClone, 3)
+			end
+			
+			if hitTarget then
+				sHit(hitTarget, true)
+				sCrack(hitTarget.CFrame * CFrame.new(0, -2, 0))
+			else
+				sCrack(explodeCF * CFrame.new(0, -2, 0))
+			end
+		end)
+	end)
+	
+	task.wait(trk.length / speed)
+	trk:Stop(true)
+	
+	isSpec = false
+	setLock(false)
+	cState = "Dummy"
+	updMov(hum.MoveDirection.Magnitude)
+end
+
+local function doLaugh()
+	if isAtk or isSpec then return end
+	isSpec = true
+	setLock(true)
+	
+	local trk = pAnim(Anims.Laugh, 1, true, false, 0.2)
+	task.wait(2)
+	
+	local cam = workspace.CurrentCamera
+	local camCF = Instance.new("Part")
+	camCF.Size, camCF.Transparency, camCF.Anchored, camCF.CanCollide = Vector3.new(1, 1, 1), 1, true, false
+	camCF.CFrame = root.CFrame
+	camCF.Parent = workspace
+	cam.CameraSubject = camCF
+
+	sTele(char, camCF.CFrame, 1.2, 2.5)
+	root.CFrame = CFrame.new(0, 1e10, 0)
+	task.wait(0.25)
+	
+	root.CFrame = camCF.CFrame
+	sTele(char, camCF.CFrame, 1.2, 2.5)
+	cam.CameraSubject = hum
+	camCF:Destroy()
+	
+	if trk then trk:Stop(true) end
+	
+	isSpec = false
+	setLock(false)
+	cState = "Dummy"
+	updMov(hum.MoveDirection.Magnitude)
+end
+
+-- ========== CONFIGURAÇÕES DA INTERFACE ORIGINAL ==========
+local oldUI = plr.PlayerGui:FindFirstChild("BetterUi") or plr.PlayerGui:FindFirstChild("ContextUI")
+if oldUI then oldUI:Destroy() end
+
+local loadedFolder = game:GetObjects(getcustomasset("BetterUi.rbxmx"))[1]
+
+for _, child in ipairs(loadedFolder:GetChildren()) do
+	if child:IsA("ScreenGui") then
+		child.ResetOnSpawn = true
+		child.Parent = plr.PlayerGui
+	end
+end
+
+local contextUI = plr.PlayerGui:WaitForChild("ContextUI")
+local mainHUD = plr.PlayerGui:WaitForChild("UI")
+
+local uiFrame = mainHUD:FindFirstChild("Ui")
+if uiFrame then
+	local movesList = uiFrame:FindFirstChild("MoveDebounceShower") and uiFrame.MoveDebounceShower:FindFirstChild("Moves1")
+	if movesList then
+		for _, name in ipairs({"4", "5", "6"}) do
+			local slot = movesList:FindFirstChild(name)
+			if slot then slot:Destroy() end
+		end
+		
+		if movesList:FindFirstChild("1") and movesList["1"]:FindFirstChild("ContextActionButton") then
+			movesList["1"].ContextActionButton.MouseButton1Click:Connect(doSmash)
+		end
+		if movesList:FindFirstChild("2") and movesList["2"]:FindFirstChild("ContextActionButton") then
+			movesList["2"].ContextActionButton.MouseButton1Click:Connect(doRun)
+		end
+		if movesList:FindFirstChild("3") and movesList["3"]:FindFirstChild("ContextActionButton") then
+			movesList["3"].ContextActionButton.MouseButton1Click:Connect(doBuster)
+		end
+	end
+end
+
+-- Vinculação de Botões de Contexto Alternativos (Teleport, LockOn, Laugh)
+local ctxFrame = contextUI:FindFirstChildWhichIsA("Frame")
+if ctxFrame then
+	if ctxFrame:FindFirstChild("Laugh") then
+		ctxFrame.Laugh.MouseButton1Click:Connect(doLaugh)
+	end
+	
+	if ctxFrame:FindFirstChild("Teleport") then
+		ctxFrame.Teleport.MouseButton1Click:Connect(function()
+			if isAtk or isSpec then return end
+			teleSelecting = true
+			lockSelecting = false
+			ctxFrame.Teleport.ImageColor3 = Color3.fromRGB(180, 140, 20)
+		end)
+	end
+	
+	if ctxFrame:FindFirstChild("LockOn") then
+		ctxFrame.LockOn.MouseButton1Click:Connect(function()
+			if lockedTarget then
+				lockedTarget = nil
+				lockSelecting = false
+				hum.AutoRotate = true
+				ctxFrame.LockOn.ImageColor3 = Color3.fromRGB(255, 255, 255)
+				if lockConnection then lockConnection:Disconnect() lockConnection = nil end
+				RS:UnbindFromRenderStep("LockCameraOrientation") -- Desativa a Opção 1 da Câmera
+			else
+				lockSelecting = true
+				teleSelecting = false
+				if ctxFrame:FindFirstChild("Teleport") then ctxFrame.Teleport.ImageColor3 = Color3.fromRGB(255, 255, 255) end
+				ctxFrame.LockOn.ImageColor3 = Color3.fromRGB(180, 140, 20)
+			end
+		end)
+	end
+end
+
+-- Captura de Cliques Globais na Tela para Ataques Básicos, Lock-On e o Novo Teleporte
+local mouse = plr:GetMouse()
+mouse.Button1Down:Connect(function()
+	if lockSelecting then
+		lockSelecting = false
+		local pickedModel, pickedRoot = getMouse()
+		if pickedModel and pickedRoot then
+			lockedTarget = pickedModel
+			hum.AutoRotate = false
+			
+			if lockConnection then lockConnection:Disconnect() end
+			
+			-- RenderStepped apenas atualiza a rotação do Personagem encarando o Alvo
+			lockConnection = RS.RenderStepped:Connect(function()
+				if not lockedTarget or not lockedTarget:FindFirstChild("HumanoidRootPart") or hum.Health <= 0 then
+					if lockConnection then lockConnection:Disconnect() lockConnection = nil end
+					RS:UnbindFromRenderStep("LockCameraOrientation") -- Desativa a câmera se o alvo morrer
+					hum.AutoRotate = true
+					lockedTarget = nil
+					if ctxFrame and ctxFrame:FindFirstChild("LockOn") then
+						ctxFrame.LockOn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+					end
+					return
+				end
+				
+				local targetRootPart = lockedTarget.HumanoidRootPart
+				local lookPos = Vector3.new(targetRootPart.Position.X, root.Position.Y, targetRootPart.Position.Z)
+				root.CFrame = CFrame.lookAt(root.Position, lookPos)
+			end)
+			
+			-- OPÇÃO 1 DA IA: Vincula a atualização de orientação da câmera APÓS a câmera padrão rodar (+1)
+			RS:BindToRenderStep("LockCameraOrientation", Enum.RenderPriority.Camera.Value + 1, function()
+				if not lockedTarget or not lockedTarget:FindFirstChild("HumanoidRootPart") then return end
+				local camera = workspace.CurrentCamera
+				if camera.CameraType == Enum.CameraType.Custom then
+					
+				end
+			end)
+			
+		else
+			if ctxFrame and ctxFrame:FindFirstChild("LockOn") then
+				ctxFrame.LockOn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			end
+		end
+	elseif teleSelecting then
+		teleSelecting = false
+		if ctxFrame and ctxFrame:FindFirstChild("Teleport") then
+			ctxFrame.Teleport.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		end
+		
+		local targetPos = mouse.Hit and mouse.Hit.Position
+		if targetPos then
+			isSpec = true
+			setLock(true)
+			
+			local cam = workspace.CurrentCamera
+			local camCF = Instance.new("Part")
+			camCF.Size, camCF.Transparency, camCF.Anchored, camCF.CanCollide = Vector3.new(1, 1, 1), 1, true, false
+			camCF.CFrame = root.CFrame
+			camCF.Parent = workspace
+			
+			sTele(char, root.CFrame, 1, 2)
+			cam.CameraSubject = camCF
+			
+			local teleCF = CFrame.new(targetPos + Vector3.new(0, 3, 0), targetPos + root.CFrame.LookVector)
+			
+			root.CFrame = CFrame.new(0, 1e10, 0)
+			task.wait(0.35)
+			
+			camCF.CFrame = teleCF
+			sTele(char, teleCF, 1, 2)
+			task.wait(0.1)
+			
+			root.CFrame = teleCF
+			cam.CameraSubject = hum
+			camCF:Destroy()
+			
+			isSpec = false
+			setLock(false)
+			cState = "Dummy"
+			updMov(hum.MoveDirection.Magnitude)
+		end
+	else
+		doAtk()
+	end
+end)
+
+-- Cadastro de Fallback para telas de toque mobile
+CAS:BindAction("ScreenTouchAttack", function(_, state, _)
+	if state == Enum.UserInputState.Begin and not lockSelecting and not teleSelecting then
+		doAtk()
+	end
+	return Enum.ContextActionResult.Pass
+end, false, Enum.UserInputType.Touch)
+
+pAnim(Anims.Idle, 1, true, false, 0.2)
