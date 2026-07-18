@@ -1,3 +1,90 @@
+--================-- hello my vibecoders,I was working on a pretty cool script, but since it was taking longer than usual, I needed help from AI, like Gemini, to save time.===========--
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local GITHUB_BASE_URL = "https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/"
+
+-- Lista de arquivos que o seu script principal precisa
+local FilesToDownload = {
+    "Gerson.rbxmx",
+    "Hammer.rbxmx",
+    "SlashEffect.rbxmx",
+    "RudeBs.rbxmx",
+    "BetterUi.rbxmx",
+    "100991290091529.ogg",
+    "98690501337789.ogg"
+}
+
+-- ========== FUNÇÃO DE DOWNLOAD ==========
+local function downloadFile(fileName)
+    local fileUrl = GITHUB_BASE_URL .. fileName
+    
+    local success, result = pcall(function()
+        return game:HttpGet(fileUrl)
+    end)
+    
+    if success and result and not result:find("404: Not Found") then
+        
+        writefile(fileName, result)
+        
+        return true
+    else
+        warn("[Instalador] Erro ao baixar " .. fileName .. ". Verifique o link do GitHub.")
+        return false
+    end
+end
+
+-- ========== VERIFICAÇÃO E EXECUÇÃO ==========
+
+local allFilesPresent = true
+
+for _, fileName in ipairs(FilesToDownload) do
+    if not isfile(fileName) then
+        allFilesPresent = false
+        
+        
+        local downloaded = downloadFile(fileName)
+        if not downloaded then
+            end
+    else
+        
+    end
+end
+
+if allFilesPresent then
+    print("[Instalador] Todos os arquivos já estão instalados e prontos!")
+else
+    print("[Instalador] Instalação concluída! Você já pode rodar o script principal.")
+end
+
 local AnimsFolder = game:GetObjects(getcustomasset("Gerson.rbxmx"))[1]
 
 
